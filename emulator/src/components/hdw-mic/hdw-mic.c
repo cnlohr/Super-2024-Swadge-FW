@@ -57,12 +57,28 @@ void startMic(void)
 uint32_t loopMic(uint16_t* outSamples, uint32_t outSamplesMax)
 {
     uint32_t samplesRead = 0;
-    while (adcSampling && (sshead != sstail) && samplesRead < outSamplesMax)
+    int sstail_local = sstail;
+
+    // Compute the total number of samples available.
+    int samples_to_read = ( sshead - sstail + SSBUF ) % SSBUF;
+
+    // Make sure we terminate at an appropriate location.
+    if( samples_to_read > outSamplesMax )
     {
-        *(outSamples++) = ssamples[sstail];
-        sstail          = (sstail + 1) % SSBUF;
-        samplesRead++;
+        samples_to_read = outSamplesMax;
     }
+
+    int ssheadcheck = ( sshead + samples_to_read ) % SSBUF;
+
+    // Simplified termination-condition logic here.
+    while( sshead != sstail )
+    {
+        *(outSamples++) = ssamples[sstail_local];
+        sstail_local    = (sstail_local + 1) % SSBUF;
+    }
+
+    sstail = sstail_local;
+
     return samplesRead;
 }
 
@@ -95,11 +111,15 @@ void micHandleSoundInput(short* in, int framesr, short numChannels)
     // If there are samples to read
     if (adcSampling && framesr)
     {
-        // For each sample
+        // For inner loops, don't force the compiler to reference global variables.
+        int sstail_local = sstail;
+        int sshead_local = sshead;
+
         for (int i = 0; i < framesr; i++)
         {
             // Read the sample into the circular ssamples[] buffer
-            if (sstail != ((sshead + 1) % SSBUF))
+            int next = ( sshead_local + 1 ) % SSBUF;
+            if (sstail_local != next )
             {
 #ifndef ANDROID
                 // 12 bit sound, unsigned
@@ -122,18 +142,19 @@ void micHandleSoundInput(short* in, int framesr, short numChannels)
                 // static int32_t vMax = INT32_MIN;
                 // if(v > vMax)
                 // {
-                // 	vMax = v;
-                // 	printf("Audio %d -> %d\n", vMin, vMax);
+                //     vMax = v;
+                //     printf("Audio %d -> %d\n", vMin, vMax);
                 // }
                 // if(v < vMin)
                 // {
-                // 	vMin = v;
-                // 	printf("Audio %d -> %d\n", vMin, vMax);
+                //     vMin = v;
+                //     printf("Audio %d -> %d\n", vMin, vMax);
                 // }
 
-                ssamples[sshead] = v;
-                sshead           = (sshead + 1) % SSBUF;
+                ssamples[sshead_local] = v;
+                sshead_local     = next;
             }
         }
+        sshead = sshead_local;
     }
 }

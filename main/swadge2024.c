@@ -403,6 +403,15 @@ void app_main(void)
             uint32_t sampleCnt = 0;
             while (0 < (sampleCnt = loopMic(adcSamples, ARRAY_SIZE(adcSamples))))
             {
+
+				uprintf( "%d\n", sampleCnt );
+				int i;
+				for( i = 0; i < sampleCnt; i++ )
+				{
+					uprintf( "%d ", adcSamples[i] );
+				}
+				uprintf( "\n" );
+#if 0
                 // Run all samples through an IIR filter
                 for (uint32_t i = 0; i < sampleCnt; i++)
                 {
@@ -415,6 +424,7 @@ void app_main(void)
                     newSamp         = CLAMP(newSamp, -32768, 32767);
                     adcSamples[i]   = newSamp;
                 }
+#endif
                 cSwadgeMode->fnAudioCallback(adcSamples, sampleCnt);
             }
         }
